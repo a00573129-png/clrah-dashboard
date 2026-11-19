@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLRAH — Panel de Administracion</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root {
+  --rojo: #F90525; --azul: #1A57B4; --azul-d: #0f3a7a;
+  --gris: #6B7280; --bg: #F3F4F6; --white: #FFFFFF;
+  --border: #E5E7EB; --text: #111827; --radius: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* LOGIN */
+#login-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--azul);
+}
+.login-box {
+  background: var(--white); border-radius: 14px; padding: 40px 36px;
+  width: 360px; box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.login-logo {
+  width: 48px; height: 48px; background: var(--rojo); border-radius: 10px;
+  margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+}
+.login-title { font-size: 18px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+.login-sub { font-size: 12px; color: var(--gris); text-align: center; margin-bottom: 28px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.form-group input {
+  width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: 7px; font-family: inherit; font-size: 14px; outline: none;
+}
+.form-group input:focus { border-color: var(--azul); }
+.btn-login {
+  width: 100%; padding: 10px; background: var(--azul); color: #fff;
+  border: none; border-radius: 7px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .15s;
+}
+.btn-login:hover { background: var(--azul-d); }
+#login-error { color: var(--rojo); font-size: 12px; text-align: center; margin-top: 10px; display: none; }
+
+/* APP */
+#app { display: none; }
+.header {
+  background: var(--azul); color: #fff; padding: 0 32px; height: 60px;
+  display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.header-bar { width: 4px; height: 28px; background: var(--rojo); border-radius: 2px; flex-shrink: 0; }
+.header-title { font-size: 15px; font-weight: 700; }
+.header-sub { font-size: 11px; opacity: .7; margin-top: 1px; }
+.header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.btn-sm { border: none; border-radius: 6px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn-logout { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: #fff; }
+.btn-logout:hover { background: rgba(255,255,255,.22); }
+.btn-dash { background: var(--rojo); color: #fff; }
+
+.wrap { max-width: 960px; margin: 0 auto; padding: 24px 24px 48px; }
+
+/* CARDS */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 20px; }
+.card-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.card-sub { font-size: 12px; color: var(--gris); margin-bottom: 18px; }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 10px; padding: 36px 24px;
+  text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--azul); background: #EFF6FF; }
+.upload-zone p { font-size: 13px; color: var(--gris); margin-top: 8px; }
+.upload-zone strong { color: var(--azul); }
+
+/* PREVIEW TABLE */
+.tbl-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); max-height: 320px; overflow-y: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { background: var(--azul); color: #fff; padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; position: sticky; top: 0; }
+.tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:nth-child(even) td { background: #F9FAFB; }
+
+/* COLUMN MAPPING */
+.mapping-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.map-row { display: flex; align-items: center; gap: 10px; }
+.map-row label { font-size: 12px; font-weight: 600; min-width: 120px; color: var(--text); }
+.map-row select {
+  flex: 1; font-family: inherit; font-size: 13px; padding: 6px 10px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--white); outline: none;
+}
+.map-row select:focus { border-color: var(--azul); }
+
+/* ACTIONS */
+.actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.btn { border: none; border-radius: 7px; padding: 8px 18px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s; }
+.btn-primary { background: var(--azul); color: #fff; }
+.btn-primary:hover { background: var(--azul-d); }
+.btn-danger { background: var(--rojo); color: #fff; }
+.btn-danger:hover { background: #c40320; }
+.btn-ghost { background: #F3F4F6; color: var(--text); }
+.btn-ghost:hover { background: #E5E7EB; }
+
+/* STATUS */
+.status { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+.status.ok { background: #DCFCE7; color: #166534; border: 1px solid #BBF7D0; }
+.status.err { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+.status.info { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
+/* HISTORIAL */
+.hist-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--azul); flex-shrink: 0; }
+.hist-info { flex: 1; }
+.hist-title { font-size: 13px; font-weight: 600; }
+.hist-sub { font-size: 11px; color: var(--gris); margin-top: 2px; }
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+.stat { background: #F9FAFB; border-radius: 8px; padding: 14px 16px; }
+.stat-label { font-size: 10px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.stat-val { font-size: 20px; font-weight: 700; color: var(--azul); }
+
+/* PROGRESS */
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--azul); border-radius: 3px; transition: width .3s; }
+
+#input-file { display: none; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🔒</div>
+    <div class="login-title">Panel de Administracion</div>
+    <div class="login-sub">CLRAH · Centro Logistico Regional de Asistencia Humanitaria</div>
+    <div class="form-group">
+      <label>Contrasena</label>
+      <input type="password" id="pwd-input" placeholder="Ingresa la contrasena" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">Ingresar</button>
+    <div id="login-error">Contrasena incorrecta</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="header">
+    <div class="header-bar"></div>
+    <div>
+      <div class="header-title">Panel de Administracion — CLRAH</div>
+      <div class="header-sub">Gestion de datos de despachos</div>
+    </div>
+    <div class="header-right">
+      <a href="dashboard.html" class="btn-sm btn-dash">Ver dashboard</a>
+      <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesion</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- ESTADISTICAS ACTUALES -->
+    <div class="card">
+      <div class="card-title">Estado actual de la base de datos</div>
+      <div class="card-sub">Datos almacenados en Supabase en este momento.</div>
+      <div class="stats-grid" id="current-stats">
+        <div class="stat"><div class="stat-label">Total registros</div><div class="stat-val" id="st-total">—</div></div>
+        <div class="stat"><div class="stat-label">Anos registrados</div><div class="stat-val" id="st-anios">—</div></div>
+        <div class="stat"><div class="stat-label">Ultima carga</div><div class="stat-val" id="st-ultima">—</div></div>
+      </div>
+    </div>
+
+    <!-- CARGA DE ARCHIVO -->
+    <div class="card">
+      <div class="card-title">Cargar nuevo archivo</div>
+      <div class="card-sub">Acepta archivos CSV. Las columnas se detectan automaticamente y puedes mapearlas antes de confirmar la carga.</div>
+
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('input-file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <svg width="40" height="40" fill="none" stroke="#6B7280" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9m0 0-3 3m3-3 3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.338-2.32 5.75 5.75 0 011.025 11.095"/>
+        </svg>
+        <p><strong>Haz clic para seleccionar</strong> o arrastra tu archivo aqui</p>
+        <p>Formato: CSV · Tamano maximo: 10 MB</p>
+      </div>
+      <input type="file" id="input-file" accept=".csv" onchange="handleFile(this.files[0])">
+
+      <div id="status-parse" class="status"></div>
+
+      <!-- MAPEO DE COLUMNAS -->
+      <div id="mapping-section" style="display:none;margin-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px">Mapeo de columnas</div>
+        <div style="font-size:12px;color:var(--gris);margin-bottom:14px">Indica cual columna de tu archivo corresponde a cada campo de la base de datos.</div>
+        <div class="mapping-grid" id="mapping-grid"></div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div id="preview-section" style="display:none;margin-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">Vista previa — primeras 10 filas</div>
+        <div class="tbl-wrap"><table class="tbl" id="preview-table"></table></div>
+        <div id="progress-wrap" style="display:none;margin-top:12px">
+          <div style="font-size:12px;color:var(--gris)" id="progress-label">Subiendo...</div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="uploadData('append')">Agregar a los datos existentes</button>
+          <button class="btn btn-danger" onclick="confirmReplace()">Reemplazar todos los datos</button>
+          <button class="btn btn-ghost" onclick="cancelUpload()">Cancelar</button>
+        </div>
+        <div id="status-upload" class="status"></div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="card">
+      <div class="card-title">Historial de cargas</div>
+      <div class="card-sub">Ultimas 10 operaciones registradas.</div>
+      <div id="historial-list"><div style="color:var(--gris);font-size:12px">Cargando historial...</div></div>
+    </div>
+
+    <!-- BORRAR DATOS -->
+    <div class="card">
+      <div class="card-title">Administracion avanzada</div>
+      <div class="card-sub">Acciones irreversibles. Usar con precaucion.</div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="downloadAll()">Descargar todos los datos como CSV</button>
+        <button class="btn btn-danger" onclick="confirmDeleteAll()">Borrar todos los registros</button>
+      </div>
+      <div id="status-admin" class="status"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════
+const SB_URL      = "https://uzllgxumwfuwpyiyoxwm.supabase.co";
+const SB_ANON     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6bGxneHVtd2Z1d3B5aXlveHdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMDMwNDksImV4cCI6MjExMDY3OTA0OX0.6DX88q-Cn20dcvn53wmfar6w75_W4ld0FssVTrdz-j4";
+const EDGE_FN     = `${SB_URL}/functions/v1/insertar-despachos`;
+const ADMIN_PASS  = "CLRAH_pan*12345";
+
+// Campos requeridos y sus alias comunes
+const CAMPOS = {
+  fecha:      ["fecha","date","Fecha","Date","FECHA"],
+  mes:        ["mes","Mes","MES","month","Month"],
+  mes_nombre: ["mes_nombre","MesNombre","mesNombre","Mes_Nombre","mes nombre"],
+  usuario:    ["usuario","Usuario","User_clean","user","User","USUARIO"],
+  pais:       ["pais","país","Pais","País","Country_clean","country","Country","PAIS"],
+  transporte: ["transporte","Transporte","Transport_clean","transport","Transport","TRANSPORTE"],
+  socio:      ["socio","Socio","Partner","partner","SOCIO"],
+  tons:       ["tons","Tons","toneladas","Toneladas","TONS","ton","Ton"],
+  usd:        ["usd","USD","Stock Value USD","stock_value_usd","valor_usd","Valor USD"],
+};
+
+let parsedData = [], fileHeaders = [], historial = [];
+
+// ═══════════════════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════════════════
+function doLogin() {
+  const pwd = document.getElementById("pwd-input").value;
+  if(pwd === ADMIN_PASS) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    loadStats();
+    loadHistorial();
+  } else {
+    document.getElementById("login-error").style.display = "block";
+    document.getElementById("pwd-input").value = "";
+  }
+}
+function doLogout() {
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
+  document.getElementById("pwd-input").value = "";
+}
+
+// ═══════════════════════════════════════════════════════
+//  ESTADISTICAS
+// ═══════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/despachos?select=id,fecha&limit=50000`, {
+      headers: { "apikey": SB_ANON, "Authorization": `Bearer ${SB_ANON}` }
+    });
+    const data = await res.json();
+    document.getElementById("st-total").textContent = data.length.toLocaleString("es-MX");
+    const anios = [...new Set(data.map(r=>r.fecha?r.fecha.slice(0,4):null).filter(Boolean))].sort();
+    document.getElementById("st-anios").textContent = anios.length ? anios.join(", ") : "—";
+    // ultima del historial
+    const h = JSON.parse(localStorage.getItem("clrah_hist")||"[]");
+    document.getElementById("st-ultima").textContent = h.length ? h[0].fecha : "—";
+  } catch(e) {
+    document.getElementById("st-total").textContent = "Error";
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HISTORIAL (localStorage)
+// ═══════════════════════════════════════════════════════
+function loadHistorial() {
+  historial = JSON.parse(localStorage.getItem("clrah_hist")||"[]");
+  renderHistorial();
+}
+function saveHistorial(entry) {
+  historial.unshift(entry);
+  if(historial.length > 10) historial = historial.slice(0,10);
+  localStorage.setItem("clrah_hist", JSON.stringify(historial));
+  renderHistorial();
+}
+function renderHistorial() {
+  const el = document.getElementById("historial-list");
+  if(!historial.length) { el.innerHTML = '<div style="color:var(--gris);font-size:12px">Sin cargas registradas.</div>'; return; }
+  el.innerHTML = historial.map(h=>`
+    <div class="hist-item">
+      <div class="hist-dot" style="background:${h.tipo==='reemplazar'?'var(--rojo)':'var(--azul)'}"></div>
+      <div class="hist-info">
+        <div class="hist-title">${h.tipo==='reemplazar'?'Reemplazo':'Agregado'} — ${h.archivo}</div>
+        <div class="hist-sub">${h.registros} registros · ${h.fecha}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ═══════════════════════════════════════════════════════
+//  ARCHIVO — PARSE
+// ═══════════════════════════════════════════════════════
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById("upload-zone").classList.remove("drag");
+  const f = e.dataTransfer.files[0];
+  if(f) handleFile(f);
+}
+
+function handleFile(file) {
+  if(!file) return;
+  if(!file.name.endsWith(".csv")) {
+    showStatus("status-parse","err","Solo se aceptan archivos CSV. Convierte tu Excel a CSV desde Archivo → Guardar como.");
+    return;
+  }
+  showStatus("status-parse","info","Leyendo archivo...");
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true,
+    complete: (res) => {
+      if(res.errors.length > 5) {
+        showStatus("status-parse","err","El archivo tiene muchos errores de formato. Revisa que sea un CSV valido.");
+        return;
+      }
+      parsedData  = res.data;
+      fileHeaders = res.meta.fields;
+      showStatus("status-parse","ok",`Archivo leido: ${parsedData.length} filas, ${fileHeaders.length} columnas.`);
+      buildMapping();
+      buildPreview();
+      document.getElementById("mapping-section").style.display = "block";
+      document.getElementById("preview-section").style.display = "block";
+    },
+    error: () => showStatus("status-parse","err","No se pudo leer el archivo.")
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAPEO DE COLUMNAS
+// ═══════════════════════════════════════════════════════
+function buildMapping() {
+  const grid = document.getElementById("mapping-grid");
+  grid.innerHTML = Object.entries(CAMPOS).map(([campo, aliases]) => {
+    const matched = fileHeaders.find(h => aliases.some(a => a.toLowerCase() === h.toLowerCase())) || "";
+    return `<div class="map-row">
+      <label>${campo}</label>
+      <select id="map-${campo}">
+        <option value="">(no incluir)</option>
+        ${fileHeaders.map(h=>`<option value="${h}" ${h===matched?"selected":""}>${h}</option>`).join("")}
+      </select>
+    </div>`;
+  }).join("");
+}
+
+function getMapping() {
+  const m = {};
+  Object.keys(CAMPOS).forEach(c => {
+    const v = document.getElementById(`map-${c}`)?.value;
+    if(v) m[c] = v;
+  });
+  return m;
+}
+
+// ═══════════════════════════════════════════════════════
+//  PREVIEW
+// ═══════════════════════════════════════════════════════
+function buildPreview() {
+  const tbl = document.getElementById("preview-table");
+  const cols = fileHeaders.slice(0,10);
+  tbl.innerHTML =
+    `<thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>`+
+    parsedData.slice(0,10).map(r=>`<tr>${cols.map(c=>`<td>${r[c]||""}</td>`).join("")}</tr>`).join("")+
+    `</tbody>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SUBIR DATOS
+// ═══════════════════════════════════════════════════════
+function mapRow(row, mapping) {
+  const r = {};
+  if(mapping.fecha)      r.fecha      = row[mapping.fecha]      || null;
+  if(mapping.mes)        r.mes        = parseInt(row[mapping.mes])    || null;
+  if(mapping.mes_nombre) r.mes_nombre = row[mapping.mes_nombre]  || null;
+  if(mapping.usuario)    r.usuario    = row[mapping.usuario]     || null;
+  if(mapping.pais)       r.pais       = row[mapping.pais]        || null;
+  if(mapping.transporte) r.transporte = row[mapping.transporte]  || null;
+  if(mapping.socio)      r.socio      = row[mapping.socio]       || null;
+  if(mapping.tons)       r.tons       = parseFloat(row[mapping.tons]) || 0;
+  if(mapping.usd)        r.usd        = parseFloat(row[mapping.usd])  || 0;
+  return r;
+}
+
+async function uploadData(modo) {
+  const mapping = getMapping();
+  if(!mapping.pais && !mapping.usuario) {
+    showStatus("status-upload","err","Mapea al menos las columnas 'pais' y 'usuario' para continuar.");
+    return;
+  }
+  const rows = parsedData.map(r => mapRow(r, mapping)).filter(r => r.pais || r.usuario);
+  if(!rows.length) { showStatus("status-upload","err","No se encontraron filas validas despues del mapeo."); return; }
+
+  document.getElementById("progress-wrap").style.display = "block";
+  showStatus("status-upload","info",`Subiendo ${rows.length} registros...`);
+
+  try {
+    if(modo === "reemplazar") {
+      const delRes = await fetch(EDGE_FN, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": ADMIN_PASS },
+        body: JSON.stringify({ accion: "borrar_todo" })
+      });
+      if(!delRes.ok) { const e = await delRes.json(); throw new Error(e.error||"Error al borrar"); }
+    }
+    // Subir en lotes de 500 via Edge Function
+    const BATCH = 500;
+    for(let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i+BATCH);
+      const res = await fetch(EDGE_FN, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-password": ADMIN_PASS },
+        body: JSON.stringify({ accion: "insertar", datos: batch })
+      });
+      if(!res.ok) { const e = await res.json(); throw new Error(e.error||"Error al insertar"); }
+      const pct = Math.round((i+batch.length)/rows.length*100);
+      document.getElementById("progress-fill").style.width = pct+"%";
+      document.getElementById("progress-label").textContent = `Subiendo... ${pct}%`;
+    }
+    document.getElementById("progress-fill").style.width = "100%";
+    showStatus("status-upload","ok",`Listo. ${rows.length} registros ${modo==="reemplazar"?"cargados":"agregados"} correctamente.`);
+    saveHistorial({ tipo:modo, archivo: document.getElementById("input-file").files[0]?.name||"archivo.csv", registros:rows.length, fecha: new Date().toLocaleString("es-MX") });
+    loadStats();
+    setTimeout(cancelUpload, 3000);
+  } catch(e) {
+    showStatus("status-upload","err","Error al subir: "+e.message);
+  }
+}
+
+function confirmReplace() {
+  if(confirm("ATENCION: Esto borrara TODOS los registros actuales y los reemplazara con los del archivo. Esta accion no se puede deshacer. ¿Continuar?")) {
+    uploadData("reemplazar");
+  }
+}
+
+function cancelUpload() {
+  parsedData = []; fileHeaders = [];
+  document.getElementById("mapping-section").style.display = "none";
+  document.getElementById("preview-section").style.display = "none";
+  document.getElementById("progress-wrap").style.display = "none";
+  document.getElementById("progress-fill").style.width = "0%";
+  document.getElementById("input-file").value = "";
+  hideStatus("status-parse"); hideStatus("status-upload");
+}
+
+// ═══════════════════════════════════════════════════════
+//  ADMIN — DESCARGAR / BORRAR TODO
+// ═══════════════════════════════════════════════════════
+async function downloadAll() {
+  showStatus("status-admin","info","Descargando datos...");
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/despachos?select=*&order=fecha.asc&limit=50000`, {
+      headers: { "apikey": SB_ANON, "Authorization": `Bearer ${SB_ANON}` }
+    });
+    const data = await res.json();
+    const cols = ["id","fecha","mes","mes_nombre","usuario","pais","transporte","socio","tons","usd","created_at"];
+    const csv  = cols.join(",")+"\n"+data.map(r=>cols.map(c=>`"${(r[c]||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `CLRAH_backup_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    hideStatus("status-admin");
+  } catch(e) {
+    showStatus("status-admin","err","Error: "+e.message);
+  }
+}
+
+async function confirmDeleteAll() {
+  const confirmText = prompt("Escribe CONFIRMAR para borrar todos los registros:");
+  if(confirmText !== "CONFIRMAR") { alert("Operacion cancelada."); return; }
+  try {
+    const res = await fetch(EDGE_FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-password": ADMIN_PASS },
+      body: JSON.stringify({ accion: "borrar_todo" })
+    });
+    if(!res.ok) { const e = await res.json(); throw new Error(e.error); }
+    showStatus("status-admin","ok","Todos los registros han sido borrados.");
+    loadStats();
+  } catch(e) {
+    showStatus("status-admin","err","Error: "+e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+function showStatus(id, type, msg) {
+  const el = document.getElementById(id);
+  el.className = `status ${type}`;
+  el.textContent = msg;
+  el.style.display = "block";
+}
+function hideStatus(id) {
+  document.getElementById(id).style.display = "none";
+}
+</script>
+</body>
+</html>
